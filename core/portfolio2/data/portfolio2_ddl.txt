@@ -1,0 +1,174 @@
+/* CONFIGURAÇÃO SCHEMA */
+SET SEARCH_PATH TO sc_srinfo_projeto;
+
+/* CONFIGURAÇÃO DATA */
+SET DATESTYLE = DMY;
+
+/************************ SEQUENCIAIS - INÍCIO ****************************/
+
+/* SEQUENCIAL TB_PORTFOLIO_2 */
+CREATE SEQUENCE IF NOT EXISTS sc_srinfo_projeto.co_seq_projeto;
+ALTER SEQUENCE sc_srinfo_projeto.co_seq_projeto RESTART WITH 1;
+
+/************************ SEQUENCIAIS - FIM ****************************/
+
+/************************ TABELAS - INÍCIO ****************************/
+
+/* TABELA TB_PORTFOLIO_2 */
+CREATE TABLE IF NOT EXISTS sc_srinfo_projeto.tb_portfolio_2 (
+	co_seq_projeto		BIGINT DEFAULT NEXTVAL('sc_srinfo_projeto.co_seq_projeto'),
+
+	id_codigo_projeto TEXT NOT NULL,
+	rede_projeto_codigo TEXT,
+	rede_projeto_papel_ue TEXT,
+	st_status_projeto TEXT NOT NULL,
+	negociacao_id TEXT NOT NULL,
+	negociacao_negociacao TEXT,
+	dt_data_negociacao TIMESTAMP,
+	dt_data_projeto_contrato TIMESTAMP,
+	dt_data_projeto_inicio TIMESTAMP,
+	dt_data_projeto_termino TIMESTAMP,
+	desc_projeto TEXT,
+	desc_titulo TEXT,
+	desc_titulo_publico TEXT,
+	desc_descricao_publica TEXT,
+	desc_objetivo TEXT,
+	ue_unidade_embrapii TEXT,
+	ue_status TEXT,
+	ue_uf TEXT,
+	ue_tipo_instituicao TEXT,
+	ue_competencias_tecnicas TEXT,
+	emp_empresas TEXT,
+	emp_n_empresas SMALLINT,
+	fin_parceria_programa TEXT,
+	fin_call TEXT,
+	fin_modalidade_financiamento TEXT,
+	fin_uso_recurso TEXT,
+	fin_parceiro_id SMALLINT,
+	fin_parceiro TEXT,
+	fin_contrato TEXT,
+	fin_contrato_eixo TEXT,
+	fin_contrato_eixo_regra TEXT,
+	fin_macrocontrato TEXT,
+	fin_sebrae TEXT,
+	fin_sebrae_contrato TEXT,
+	fin_sebrae_contrato_eixo TEXT,
+	fin_sebrae_eixo_regra TEXT,
+	fin_sebrae_eixo_regra2 TEXT,
+	fin_sebrae_macrocontrato TEXT,
+	class_tipo_projeto TEXT,
+	class_trl_inicial TEXT,
+	class_trl_final TEXT,
+	class_area_aplicacao TEXT,
+	class_tecnologia_habilitadora TEXT,
+	class_nib TEXT,
+	class_bmaisp TEXT,
+	class_energia_renovavel TEXT,
+	class_economia_circular TEXT,
+	class_tecnologia_verde TEXT,
+	val_nominal_embrapii DECIMAL(18,2),
+	val_nominal_empresa DECIMAL(18,2),
+	val_nominal_sebrae DECIMAL(18,2),
+	val_nominal_unidade DECIMAL(18,2),
+	val_nominal_total DECIMAL(18,2),
+	val_ipca_embrapii DECIMAL(18,2),
+	val_ipca_empresa DECIMAL(18,2),
+	val_ipca_sebrae DECIMAL(18,2),
+	val_ipca_total DECIMAL(18,2),
+	val_ipca_unidade DECIMAL(18,2),
+	macroentrega_numero SMALLINT,
+	macroentrega_aceites DECIMAL(3,2),
+	macroentrega_macroentregas TEXT,
+	pi_numero_pedidos SMALLINT,
+	aval_nota DECIMAL(4,2),
+	aval_data_avaliacao TIMESTAMP,
+	outros_cooperacao_internacional TEXT,
+	outros_observacoes TEXT,
+	outros_tags TEXT,
+	outros_data_extracao TIMESTAMP
+);
+
+/************************ TABELAS - FIM ****************************/
+
+/************************ CONSTRAINTS - INÍCIO ****************************/
+
+/* TB_PORTFOLIO_2 */
+/* PRIMARY KEY */
+ALTER TABLE sc_srinfo_projeto.tb_portfolio_2
+	ADD CONSTRAINT pk_projeto PRIMARY KEY (id_codigo_projeto);
+
+/************************ CONSTRAINTS - FIM ****************************/
+
+/************************ COMENTÁRIOS - INÍCIO ****************************/
+
+/* TB_PORTFOLIO_2 */
+COMMENT ON TABLE sc_srinfo_projeto.tb_portfolio_2 IS 'Entidade que armazena informações de cada projeto do Modelo Tradicional da Embrapii.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.co_seq_projeto IS 'Código sequencial dos registros da entidade TB_PORTFOLIO_2.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.id_codigo_projeto IS 'Chave primária da entidade TB_PORTFOLIO_2.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.rede_projeto_codigo IS 'Código do projeto em rede, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.rede_projeto_papel_ue IS 'Papel da unidade no projeto em rede (Coordenadora ou Coexecutora)';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.st_status_projeto IS 'Status atual do projeto (Atrasado, Cancelado, Concluído, Em andamento, Encerrado ou Suspenso).';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.negociacao_id IS 'Código identificador da negociação vinculada ao projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.negociacao_negociacao IS 'Descrição da negociação.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.dt_data_negociacao IS 'Data da negociação do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.dt_data_projeto_contrato IS 'Data de assinatura do contrato do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.dt_data_projeto_inicio IS 'Data de início do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.dt_data_projeto_termino IS 'Data de término do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.desc_projeto IS 'Descrição interna do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.desc_titulo IS 'Título do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.desc_titulo_publico IS 'Título do projeto para divulgação pública.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.desc_descricao_publica IS 'Descrição do projeto para divulgação pública.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.desc_objetivo IS 'Objetivo principal do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.ue_unidade_embrapii IS 'Unidade Embrapii executora do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.ue_status IS 'Status da unidade executora.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.ue_uf IS 'Unidade federativa (estado) da unidade executora.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.ue_tipo_instituicao IS 'Tipo da instituição da unidade executora.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.ue_competencias_tecnicas IS 'Competência técnica da unidade executora.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.emp_empresas IS 'Informações das empresas participantes do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.emp_n_empresas IS 'Número de empresas participantes do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_parceria_programa IS 'Parceria do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_call IS 'Call do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_modalidade_financiamento IS 'Modalidade de financiamento do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_uso_recurso IS 'Se houve uso de recursos obrigatórios por parte da empresa.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_parceiro_id IS 'Identificador do parceiro.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_parceiro IS 'Nome do parceiro.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_contrato IS 'Contrato do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_contrato_eixo IS 'Eixo do contrato.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_contrato_eixo_regra IS 'Regra do eixo do contrato.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_macrocontrato IS 'Macrocontrato do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_sebrae IS 'Se o projeto é Sebrae.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_sebrae_contrato IS 'Tipo de contrato do Sebrae, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_sebrae_contrato_eixo IS 'Eixo do contrato Sebrae, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_sebrae_eixo_regra IS 'Regra do eixo Sebrae, se aplicável';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_sebrae_eixo_regra2 IS 'Segunda regra do eixo Sebrae, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.fin_sebrae_macrocontrato IS 'Macrocontrato Sebrae, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_tipo_projeto IS 'Tipo de projeto (Produto, Processo ou Produto e Processo).';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_trl_inicial IS 'TRL inicial do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_trl_final IS 'TRL final do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_area_aplicacao IS 'Área de aplicação do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_tecnologia_habilitadora IS 'Tecnologia habilitadora utilizada.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_nib IS 'Missão da Nova Indústria Brasil que o projeto se encaixa, se aplicável (1 a 6 ou Não se aplica).';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_bmaisp IS 'Se o projeto se encaixa no Brasil Mais Produtivo.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_energia_renovavel IS 'Se o projeto é vinculado a Energia Renovável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_economia_circular IS 'Se o projeto é vinculado a Economia Circular.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.class_tecnologia_verde IS 'Qual a Tecnologia Verde do projeto, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_nominal_embrapii IS 'Valor nominal investido pela Embrapii.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_nominal_empresa IS 'Valor nominal investido pela empresa.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_nominal_sebrae IS 'Valor nominal investido pelo Sebrae, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_nominal_unidade IS 'Valor nominal investido pela unidade executora.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_nominal_total IS 'Valor total nominal do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_ipca_embrapii IS 'Valor investido pela Embrapii corrigido pelo IPCA.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_ipca_empresa IS 'Valor investido pela empresa corrigido pelo IPCA.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_ipca_sebrae IS 'Valor investido pelo Sebrae corrigido pelo IPCA, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_ipca_total IS 'Valor total corrigido pelo IPCA.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.val_ipca_unidade IS 'Valor investido pela unidade executora corrigido pelo IPCA.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.macroentrega_numero IS 'Número de macroentregas do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.macroentrega_aceites IS 'Percentual de aceite das macroentregas (0.00 a 1.00).';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.macroentrega_macroentregas IS 'Descrição das macroentregas do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.pi_numero_pedidos IS 'Número de pedidos de propriedade intelectual associados ao projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.aval_nota IS 'Nota de avaliação do projeto (0.00 a 10.00).';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.aval_data_avaliacao IS 'Data da avaliação do projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.outros_cooperacao_internacional IS 'Qual a chamada de Cooperação Internacional do projeto, se aplicável.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.outros_observacoes IS 'Outras observações sobre o projeto.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.outros_tags IS 'Tags adicionais para classificação ou filtros.';
+COMMENT ON COLUMN sc_srinfo_projeto.tb_portfolio_2.outros_data_extracao IS 'Data de extração dos dados do projeto.';
