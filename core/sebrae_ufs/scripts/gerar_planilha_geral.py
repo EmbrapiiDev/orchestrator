@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from office365_api.upload_files_sebrae import upload_files
+from scripts.connect_sharepoint import SharepointClient
 from openpyxl import load_workbook
 from shutil import copyfile
 from copy import copy
@@ -483,14 +483,11 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
         wb.worksheets[0].sheet_state = 'visible'
     wb.save(caminho_arquivo)
     wb.close()
-    print('aqui')
+
     if enviar_pasta_sebrae:
-        upload_files(
-            pasta_arquivos=STEP3,
-            destino='Acompanhamento Descentralizado//base_de_dados_sebrae_geral',
-            arquivo_especifico=caminho_arquivo
-        )
-    print('aqui2')
+        sp = SharepointClient(sebrae=True)
+        sp.upload_file_to_folder(caminho_arquivo, 'Acompanhamento Descentralizado/base_de_dados_sebrae_geral')
+
     return planilha_geral, combinado, municipios, port_ue, proj_emp, port_emp, port_me
 
 # Gerando a planilha de erros

@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from office365_api.upload_files_sebrae import upload_files
+from scripts.connect_sharepoint import SharepointClient
 from scripts.gerar_planilha_geral import copiar_planilha_formatada
 from shutil import copyfile
 from openpyxl import load_workbook
@@ -32,6 +32,8 @@ def gerar_planilhas_uf(planilha_geral, combinado, municipios, port_ue, proj_emp,
             codigos_uf.append({'uf': uf, 'codigo_projeto': codigo})
     
     codigos_uf = pd.DataFrame(codigos_uf)
+
+    sp = SharepointClient(sebrae=True)
 
     # obtendo planilhas por uf
     # Iterar por cada UF única no DataFrame codigos_uf
@@ -365,8 +367,4 @@ def gerar_planilhas_uf(planilha_geral, combinado, municipios, port_ue, proj_emp,
         wb.close()
 
         if enviar_pasta_sebrae == True:
-            upload_files(
-                pasta_arquivos = STEP3,
-                destino = f'Acompanhamento Descentralizado//SEBRAE_{uf}//base_de_dados_sebrae_{uf_lower}',
-                arquivo_especifico = os.path.abspath(os.path.join(STEP3, f'sebrae_{uf}.xlsx'))
-            )
+            sp.upload_file_to_folder(caminho_arquivo, f'Acompanhamento Descentralizado/SEBRAE_{uf}/base_de_dados_sebrae_{uf_lower}')
