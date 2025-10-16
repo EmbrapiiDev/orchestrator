@@ -29,26 +29,34 @@ if not os.path.exists(STEP3):
 sys.path.append(SCRIPTS)
 sys.path.append(PATH_OFFICE)
 
-from office365_api.download_files import get_file, get_files
+# from office365_api.download_files import get_file, get_files
 from scripts.apagar_arquivos_pasta import apagar_arquivos_pasta
+from scripts.connect_sharepoint import SharepointClient
 
 def buscar_arquivos_sharepoint(gerar_novo = False):
     apagar_arquivos_pasta(STEP1)
     apagar_arquivos_pasta(STEP2)
     apagar_arquivos_pasta(STEP3)
 
-    get_file("portfolio.xlsx", "DWPII//srinfo", STEP1)
-    get_file("macroentregas.xlsx", "DWPII//srinfo", STEP1)
-    get_file("projetos_empresas.xlsx", "DWPII//srinfo", STEP1)
-    get_file("informacoes_empresas.xlsx", "DWPII//srinfo", STEP1)
-    get_file("empresas_contratantes.xlsx", "DWPII//srinfo", STEP1)
-    get_file("pedidos_pi.xlsx", "DWPII//srinfo", STEP1)
-    get_file("info_unidades_embrapii.xlsx", "DWPII//srinfo", STEP1)
-    get_file("ibge_municipios.xlsx", "DWPII//lookup_tables", STEP1)
-    get_file("oni_companies.xlsx", "dw_pii", STEP1)
-    get_file("Contas Bancárias - UE.xlsx", "DWPII//lookup_tables", STEP1)
-    # get_file("srinfo_sebrae_sourceamount.xlsx", "dw_pii", STEP1)
-    # get_file("srinfo_unit.xlsx", "dw_pii", STEP1)
-    # get_file("srinfo_company_company.xlsx", "dw_pii", STEP1)
+    sp = SharepointClient()
+    pasta_srinfo = "DWPII/srinfo"
+    arquivos_srinfo = ['portfolio.xlsx', 'macroentregas.xlsx', 'projetos_empresas.xlsx', 'informacoes_empresas.xlsx',
+                'empresas_contratantes.xlsx', 'pedidos_pi.xlsx', 'info_unidades_embrapii.xlsx']
+    
+    for arquivo in arquivos_srinfo:
+        sp.download_file(f"{pasta_srinfo}/{arquivo}", os.path.join(STEP1, arquivo))
+
+    pasta_lookup = "DWPII/lookup_tables"
+    arquivos_lookup = ['ibge_municipios.xlsx', 'Contas Bancárias - UE.xlsx']
+    
+    for arquivo in arquivos_lookup:
+        sp.download_file(f"{pasta_lookup}/{arquivo}", os.path.join(STEP1, arquivo))
+
+    sp.download_file("dw_pii/oni_companies.xlsx", os.path.join(STEP1, "oni_companies.xlsx"))
+
     if gerar_novo == False:
-        get_files("DWPII//sebrae_ufs", STEP1)
+        pasta_origem = "DWPII/sebrae_ufs"
+        arquivos = sp.list_files(pasta_origem)
+        for arquivo in arquivos:
+            nome_arquivo = arquivo["name"]
+            sp.download_file(f"{pasta_origem}/{nome_arquivo}", os.path.join(STEP1, nome_arquivo))

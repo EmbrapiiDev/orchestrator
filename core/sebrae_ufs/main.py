@@ -1,18 +1,20 @@
 from scripts.connect_vpn import connect_vpn, disconnect_vpn
 from scripts.srinfo_sebrae_sourceamount import srinfo_sebrae_sourceamount
-from scripts.srinfo_ue_unit import srinfo_ue_unit
-from scripts.srinfo_company import srinfo_company
+from scripts.srinfo_unit import srinfo_unit
+from scripts.srinfo_company import srinfo_company_company
 from scripts.buscar_arquivos_sharepoint import buscar_arquivos_sharepoint
 from scripts.apagar_arquivos_pasta import apagar_arquivos_pasta
 from scripts.gerar_planilha_geral import gerar_planilha_geral, gerar_planilha_erros
 from scripts.gerar_planilhas_ufs import gerar_planilhas_uf
-from office365_api.upload_files import upload_files
+from scripts.connect_sharepoint import SharepointClient
 import os
 from dotenv import load_dotenv
+import shutil
 
 load_dotenv()
 ROOT = os.getenv('ROOT_SEBRAE_UFS')
 STEP3 = os.path.abspath(os.path.join(ROOT, 'step_3_data_processed'))
+STEP1 = os.path.abspath(os.path.join(ROOT, 'step_1_data_raw'))
 
 
 def main():
@@ -24,11 +26,14 @@ def main():
     print("Passo 2/4: Consultando valores por fonte no ClickHouse")
     connect_vpn()
     srinfo_sebrae_sourceamount()
-    srinfo_ue_unit()
-    srinfo_company()
+    srinfo_unit()
+    srinfo_company_company()
     disconnect_vpn()
-    upload_files(STEP3, 'dw_pii')
-    apagar_arquivos_pasta(STEP3)
+    sp = SharepointClient()
+    arquivos = ['srinfo_sebrae_sourceamount.xlsx', 'srinfo_unit.xlsx', 'srinfo_company_company.xlsx']
+    for arquivo in arquivos:
+        sp.upload_file_to_folder(os.path.join(STEP3, arquivo), 'dw_pii')
+        shutil.move(os.path.join(STEP3, arquivo), os.path.join(STEP1, arquivo))
 
     # # Gerando planilhas
     print("Passo 3/4: Gerando planilhas")
@@ -38,7 +43,11 @@ def main():
 
     # Levando arquivos para o SharePoint
     print("Passo 4/4: Levando planilhas para o SharePoint")
-    upload_files(STEP3, 'DWPII/sebrae_ufs')
+
+    for nome_arquivo in os.listdir(STEP3):
+            caminho_do_arquivo = os.path.join(STEP3, nome_arquivo)
+            if os.path.isfile(caminho_do_arquivo):
+                sp.upload_file_to_folder(caminho_do_arquivo, 'DWPII/sebrae_ufs')
 
 if __name__ == "__main__":
     main()

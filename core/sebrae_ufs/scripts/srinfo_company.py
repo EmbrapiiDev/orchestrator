@@ -17,22 +17,28 @@ STEP1 = os.path.abspath(os.path.join(ROOT, 'step_1_data_raw'))
 STEP3 = os.path.abspath(os.path.join(ROOT, 'step_3_data_processed'))
 
 
-def srinfo_company():
+def srinfo_company_company():
+    """
+    Dados de empresas, sem inativação e sem CNPJ nulo
+    """
     query = """
-        		SELECT DISTINCT
-                    *
-                FROM s3(cred_s3, url = s3m_srinfo('company_company', today()))
+        SELECT DISTINCT
+            company.*
+        FROM db_bronze_srinfo.company_company AS company
+        WHERE data_inativacao IS NULL
+        AND NOT cnpj IS NULL
     """
     nome_arquivo = "company_company"
     query_clickhouse(HOST, PORT, USER, PASSWORD, query, nome_arquivo)
 
     # Carregar arquivo
-    path_file_raw = os.path.abspath(os.path.join(STEP1 ,f"{nome_arquivo}.csv"))
+    path_file_raw = os.path.abspath(os.path.join(ROOT, STEP1 ,f"{nome_arquivo}.csv"))
+    df_raw = pd.read_csv(path_file_raw)
+
+    # Carregar arquivo
+    path_file_raw = os.path.abspath(os.path.join(ROOT, STEP1 ,f"{nome_arquivo}.csv"))
     df_raw = pd.read_csv(path_file_raw)
 
     # Salvar em formato Excel
-    print(f"Salvando arquivo {nome_arquivo} em formato Excel")
-    path_file_processed = os.path.abspath(os.path.join(STEP1, f"srinfo_{nome_arquivo}.xlsx"))
-    df_raw.to_excel(path_file_processed, index=False)
-    path_file_processed = os.path.abspath(os.path.join(STEP3, f"srinfo_{nome_arquivo}.xlsx"))
+    path_file_processed = os.path.abspath(os.path.join(ROOT, STEP3, f"srinfo_{nome_arquivo}.xlsx"))
     df_raw.to_excel(path_file_processed, index=False)

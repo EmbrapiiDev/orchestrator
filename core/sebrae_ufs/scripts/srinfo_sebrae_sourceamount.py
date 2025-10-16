@@ -17,70 +17,138 @@ STEP3 = os.path.abspath(os.path.join(ROOT, 'step_3_data_processed'))
 
 
 def srinfo_sebrae_sourceamount():
-    print('user: ', USER)
-    print('senha: ', PASSWORD)
     query = """
         		SELECT
-                    ue_negotiation.code codigo_negociacao,
-                    main.value valor,
-                    source.alias fonte,
+                    ue_negotiation.code AS codigo_negociacao,
+                    main.value AS valor,
+                    source.alias AS fonte,
                     company.cnpj
-                FROM s3(cred_s3, url = s3m_srinfo('partnership_sourceamount', today())) main
-                LEFT JOIN (
-                    SELECT
-                        id,
-                        alias
-                    FROM s3(cred_s3, url = s3m_srinfo('project_source', today()))
-                ) source
-                ON main.source_id = source.id
-                LEFT JOIN (
-                    SELECT
-                        id,
-                        partnership_info_id
-                    FROM s3(cred_s3, url = s3m_srinfo('partnership_fundsapproval', today()))
-                ) fundsapproval
-                ON main.funds_approval_id = fundsapproval.id
-                LEFT JOIN (
-                    SELECT
-                        id,
-                        negotiation_id,
-                        partnership_id
-                    FROM s3(cred_s3, url = s3m_srinfo('ue_partnershipinfo', today()))
-                ) ue_partnership
-                ON fundsapproval.partnership_info_id = ue_partnership.id
-                LEFT JOIN (
-                    SELECT
-                        id,
-                        model
-                    FROM s3(cred_s3, url = s3m_srinfo('partnership_partnership', today()))
-                ) partnership
-                ON ue_partnership.partnership_id = partnership.id
-                LEFT JOIN (
-                    SELECT
-                        id,
-                        code
-                    FROM s3(cred_s3, url = s3m_srinfo('ue_negotiation', today())) ue_negotiation
-                ) ue_negotiation
-                ON ue_partnership.negotiation_id = ue_negotiation.id
-                LEFT JOIN (
-                    SELECT
-                        id,
-                        cnpj
-                    FROM s3(cred_s3, url = s3m_srinfo('company_company', today()))
-                ) company
-                ON main.company_id = company.id
-                WHERE partnership.model IN (2, 10, 9, 19, 20)
+                    FROM db_bronze_srinfo.partnership_sourceamount AS main
+                -- JUNTANDO COM project_source --
+                    LEFT JOIN (
+                            SELECT
+                                source.id,
+                                source.alias
+                            FROM db_bronze_srinfo.project_source AS source
+                            INNER JOIN (
+                                SELECT
+                                    id,
+                                    MAX(data_carga) AS max_data_carga
+                                FROM db_bronze_srinfo.project_source
+                                WHERE data_inativacao IS NULL
+                                GROUP BY id
+                            ) AS latest_source
+                            ON source.id = latest_source.id
+                                AND source.data_carga = latest_source.max_data_carga
+                            WHERE source.data_inativacao IS NULL
+                        ) AS source
+                            ON main.source_id = source.id
+                -- JUNTANDO COM funds_approval --
+                    LEFT JOIN (
+                            SELECT
+                                fundsapproval.id,
+                                fundsapproval.partnership_info_id,
+                            FROM db_bronze_srinfo.partnership_fundsapproval AS fundsapproval
+                            INNER JOIN (
+                                SELECT
+                                    id,
+                                    MAX(data_carga) AS max_data_carga
+                                FROM db_bronze_srinfo.partnership_fundsapproval
+                                WHERE data_inativacao IS NULL
+                                GROUP BY id
+                            ) AS latest_fundsapproval
+                            ON fundsapproval.id = latest_fundsapproval.id
+                                AND fundsapproval.data_carga = latest_fundsapproval.max_data_carga
+                            WHERE fundsapproval.data_inativacao IS NULL
+                        ) AS fundsapproval
+                            ON main.funds_approval_id = fundsapproval.id
+                -- JUNTANDO COM ue_partnershipinfo --
+                    LEFT JOIN (
+                            SELECT
+                                ue_partnership.id,
+                                ue_partnership.negotiation_id,
+                                ue_partnership.partnership_id
+                            FROM db_bronze_srinfo.ue_partnershipinfo AS ue_partnership
+                            INNER JOIN (
+                                SELECT
+                                    id,
+                                    MAX(data_carga) AS max_data_carga
+                                FROM db_bronze_srinfo.ue_partnershipinfo
+                                WHERE data_inativacao IS NULL
+                                GROUP BY id
+                            ) AS latest_ue_partnership
+                            ON ue_partnership.id = latest_ue_partnership.id
+                                AND ue_partnership.data_carga = latest_ue_partnership.max_data_carga
+                            WHERE ue_partnership.data_inativacao IS NULL
+                        ) AS ue_partnership
+                            ON fundsapproval.partnership_info_id = ue_partnership.id
+                -- JUNTANDO COM partnership_partnership --
+                    LEFT JOIN (
+                            SELECT
+                                partnership.id,
+                                partnership.model
+                            FROM db_bronze_srinfo.partnership_partnership AS partnership
+                            INNER JOIN (
+                                SELECT
+                                    id,
+                                    MAX(data_carga) AS max_data_carga
+                                FROM db_bronze_srinfo.partnership_partnership
+                                WHERE data_inativacao IS NULL
+                                GROUP BY id
+                            ) AS latest_partnership
+                            ON partnership.id = latest_partnership.id
+                                AND partnership.data_carga = latest_partnership.max_data_carga
+                            WHERE partnership.data_inativacao IS NULL
+                        ) AS partnership
+                            ON ue_partnership.partnership_id = partnership.id
+                -- JUNTANDO COM ue_negotiation --
+                    LEFT JOIN (
+                            SELECT
+                                ue_negotiation.id,
+                                ue_negotiation.code
+                            FROM db_bronze_srinfo.ue_negotiation AS ue_negotiation
+                            INNER JOIN (
+                                SELECT
+                                    id,
+                                    MAX(data_carga) AS max_data_carga
+                                FROM db_bronze_srinfo.ue_negotiation
+                                WHERE data_inativacao IS NULL
+                                GROUP BY id
+                            ) AS latest_ue_negotiation
+                            ON ue_negotiation.id = latest_ue_negotiation.id
+                                AND ue_negotiation.data_carga = latest_ue_negotiation.max_data_carga
+                            WHERE ue_negotiation.data_inativacao IS NULL
+                        ) AS ue_negotiation
+                            ON ue_partnership.negotiation_id = ue_negotiation.id
+                -- JUNTANDO COM company_company --
+                    LEFT JOIN (
+                            SELECT
+                                company.id,
+                                company.cnpj
+                            FROM db_bronze_srinfo.company_company AS company
+                            INNER JOIN (
+                                SELECT
+                                    id,
+                                    MAX(data_carga) AS max_data_carga
+                                FROM db_bronze_srinfo.company_company
+                                WHERE data_inativacao IS NULL
+                                GROUP BY id
+                            ) AS latest_company
+                            ON company.id = latest_company.id
+                                AND company.data_carga = latest_company.max_data_carga
+                            WHERE company.data_inativacao IS NULL
+                        ) AS company
+                            ON main.company_id = company.id
+                WHERE main.data_inativacao IS NULL
+                AND partnership.model IN (2, 10, 9, 19, 20)
     """
     nome_arquivo = "sebrae_sourceamount"
     query_clickhouse(HOST, PORT, USER, PASSWORD, query, nome_arquivo)
 
     # Carregar arquivo
-    path_file_raw = os.path.abspath(os.path.join(STEP1 ,f"{nome_arquivo}.csv"))
+    path_file_raw = os.path.abspath(os.path.join(ROOT, STEP1 ,f"{nome_arquivo}.csv"))
     df_raw = pd.read_csv(path_file_raw)
 
     # Salvar em formato Excel
-    print(f"Salvando arquivo {nome_arquivo} em formato Excel")
-    path_file_processed = os.path.abspath(os.path.join(STEP1, f"srinfo_{nome_arquivo}.xlsx"))
-    df_raw.to_excel(path_file_processed, index=False)
-    path_file_processed = os.path.abspath(os.path.join(STEP3, f"srinfo_{nome_arquivo}.xlsx"))
+    path_file_processed = os.path.abspath(os.path.join(ROOT, STEP3, f"srinfo_{nome_arquivo}.xlsx"))
     df_raw.to_excel(path_file_processed, index=False)
