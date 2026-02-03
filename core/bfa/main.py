@@ -1,6 +1,6 @@
 from scripts.buscar_arquivos_sharepoint import buscar_arquivos_sharepoint
 from scripts.gerar_planilhas import gerar_planilhas, processar_planilhas
-from office365_api.upload_files import upload_files
+from scripts.connect_sharepoint import SharepointClient
 from scripts.zipar_arquivos import zipar_arquivos
 from scripts.main_companies import main_companies
 import os
@@ -26,14 +26,23 @@ def main():
     print("Passo 3/5: Processando as planilhas geradas...")
     processar_planilhas()
 
-    # Pesquisar informações das empresas no databricks do oni
-    print("Passo 4/5: Buscando informações das empresas no Databricks do Observatório Nacional da Indústria...")
-    main_companies()
+    # # Pesquisar informações das empresas no databricks do oni
+    # print("Passo 4/5: Buscando informações das empresas no Databricks do Observatório Nacional da Indústria...")
+    # main_companies()
 
     # Levando as planilhas processadas para o SharePoint
     print("Passo 5/5: Enviando planilhas processadas para o SharePoint...")
-    upload_files(STEP3, 'dw_pii')
-    upload_files(BACKUP, 'DWPII_backup')
+    sp = SharepointClient()
+
+    for nome_arquivo in os.listdir(STEP3):
+        caminho_do_arquivo = os.path.join(STEP3, nome_arquivo)
+        if os.path.isfile(caminho_do_arquivo):
+            sp.upload_file_to_folder(caminho_do_arquivo, 'dw_pii')
+
+    for nome_arquivo in os.listdir(BACKUP):
+        caminho_do_arquivo = os.path.join(BACKUP, nome_arquivo)
+        if os.path.isfile(caminho_do_arquivo):
+            sp.upload_file_to_folder(caminho_do_arquivo, 'DWPII_backup')
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from datetime import datetime
 from office365_api.connect_databricks import connect_databricks
-from processar_excel import processar_excel
+from .processar_excel import processar_excel
 import inspect
 
 load_dotenv()

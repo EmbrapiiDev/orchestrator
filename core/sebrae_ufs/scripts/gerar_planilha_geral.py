@@ -202,7 +202,7 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
     # juntando as planilhas
     ue = pd.merge(ue, ue_cnpj, on = 'unidade_embrapii', how = 'left')
     port_ue = pd.merge(planilha_geral, ue, on = 'unidade_embrapii', how = 'left')
-    port_ue = pd.merge(port_ue, ue_local, left_on = 'unidade_embrapii', right_on = 'name', how = 'left')
+    port_ue = pd.merge(port_ue, ue_local, on = 'unidade_embrapii', how = 'left')
     
 
     # retirando ";" de 'competencias_tecnicas'
@@ -212,11 +212,11 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
     colunas_desejadas_ues = [
         'unidade_embrapii',
         'ue_responsavel_institucional',
-        'tipo_instituicao',
-        'zip_code',
-        'address',
+        'tipo_instituicao_x',
+        'cep',
+        'endereco',
         'municipio',
-        'uf',
+        'uf_x',
         'competencias_tecnicas',
         'cnpj'
         ]   
@@ -225,11 +225,11 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
     # Agrupando a coluna 'cnpj' concatenando com '; ' e mantendo a primeira ocorrência para as demais
     port_ue2 = port_ue[colunas_desejadas_ues].groupby('unidade_embrapii').agg({
         'ue_responsavel_institucional': 'first',
-        'tipo_instituicao': 'first',
-        'zip_code': 'first',
-        'address': 'first',
+        'tipo_instituicao_x': 'first',
+        'cep': 'first',
+        'endereco': 'first',
         'municipio': 'first',
-        'uf': 'first',
+        'uf_x': 'first',
         'competencias_tecnicas': 'first',
         'cnpj': lambda x: '; '.join(x.dropna().unique())  # concatena CNPJs únicos separados por "; "
     }).reset_index()
@@ -245,13 +245,13 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
 
     # renomeando as colunas
     port_ue2 = port_ue2.rename(columns={
-        'unidade_embrapii': 'unidade_embrapii',
+        'unidade_embrapii_x': 'unidade_embrapii',
         'ue_responsavel_institucional': 'responsavel_institucional',
-        'tipo_instituicao': 'tipo_instituicao',
-        'zip_code': 'cep',
-        'address': 'endereco',
+        'tipo_instituicao_x': 'tipo_instituicao',
+        'cep': 'cep',
+        'endereco': 'endereco',
         'municipio': 'municipio',
-        'uf': 'uf',
+        'uf_x': 'uf',
         'competencias_tecnicas': 'competencias_tecnicas',
         'cnpj': 'cnpj_representante_financeiro'
     })
@@ -322,7 +322,7 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
     # oni_companies = oni_companies[oni_companies['ativo'] == 1]
 
     # juntando as planilhas
-    emp = pd.merge(emp, company[['cnpj', 'neighborhood', 'zip_code']], on = 'cnpj', how = 'left')
+    emp = pd.merge(emp, company[['cnpj', 'bairro', 'cep']], on = 'cnpj', how = 'left')
     proj_emp2 = pd.merge(proj_emp, emp, on = 'cnpj', how = 'left')
     proj_emp2 = pd.merge(proj_emp2, emp_cont, on = 'cnpj', how = 'left')
     port_emp = pd.merge(planilha_geral, proj_emp2, on = 'codigo_projeto', how = 'left')
@@ -334,8 +334,8 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
             'contatos',
             'emails_contatos',
             'telefones_contatos',
-            'zip_code',
-            'neighborhood',
+            'cep',
+            'bairro',
             'municipio',
             'uf',
             'porte',
@@ -359,8 +359,8 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
         'contatos': 'contato_declarado',
         'emails_contatos': 'e-mail_de_contato',
         'telefones_contatos': 'telefone',
-        'zip_code': 'cep',
-        'neighborhood': 'bairro',
+        'cep': 'cep',
+        'bairro': 'bairro',
         'municipio': 'municipio',
         'uf': 'uf',
         'porte': 'porte',

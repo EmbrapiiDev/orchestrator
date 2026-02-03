@@ -1,4 +1,3 @@
-from scripts.connect_vpn import connect_vpn, disconnect_vpn
 from scripts.srinfo_sebrae_sourceamount import srinfo_sebrae_sourceamount
 from scripts.srinfo_unit import srinfo_unit
 from scripts.srinfo_company import srinfo_company_company
@@ -9,7 +8,6 @@ from scripts.gerar_planilhas_ufs import gerar_planilhas_uf
 from scripts.connect_sharepoint import SharepointClient
 import os
 from dotenv import load_dotenv
-import shutil
 
 load_dotenv()
 ROOT = os.getenv('ROOT_SEBRAE_UFS')
@@ -20,20 +18,20 @@ STEP1 = os.path.abspath(os.path.join(ROOT, 'step_1_data_raw'))
 def main():
     # Carregar arquivos do SharePoint
     print("Passo 1/4: Buscando arquivos do SharePoint")
-    # buscar_arquivos_sharepoint(gerar_novo=False)
+    apagar_arquivos_pasta(STEP1)
+    apagar_arquivos_pasta(STEP3)
+    buscar_arquivos_sharepoint(gerar_novo=False)
 
-    # Consulta clickhouse
-    print("Passo 2/4: Consultando valores por fonte no ClickHouse")
-    connect_vpn()
+    # Consulta databricks
+    print("Passo 2/4: Consultando valores por fonte no Databricks")
     srinfo_sebrae_sourceamount()
     srinfo_unit()
     srinfo_company_company()
-    disconnect_vpn()
     sp = SharepointClient()
-    arquivos = ['srinfo_sebrae_sourceamount.xlsx', 'srinfo_unit.xlsx', 'srinfo_company_company.xlsx']
-    for arquivo in arquivos:
-        sp.upload_file_to_folder(os.path.join(STEP3, arquivo), 'dw_pii')
-        shutil.move(os.path.join(STEP3, arquivo), os.path.join(STEP1, arquivo))
+    # arquivos = ['srinfo_sebrae_sourceamount.xlsx', 'srinfo_unit.xlsx', 'srinfo_company_company.xlsx']
+    # for arquivo in arquivos:
+    #     sp.upload_file_to_folder(os.path.join(STEP3, arquivo), 'dw_pii')
+    #     shutil.move(os.path.join(STEP3, arquivo), os.path.join(STEP1, arquivo))
 
     # # Gerando planilhas
     print("Passo 3/4: Gerando planilhas")
