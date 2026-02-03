@@ -160,7 +160,7 @@ def levar_postgresql(df, nome_banco, nome_schema, nome_tabela, truncate=True):
         conn.commit()
 
         if truncate:
-            cur.execute(f'TRUNCATE TABLE {nome_tabela} RESTART IDENTITY CASCADE;')
+            cur.execute(f'TRUNCATE TABLE {nome_tabela} RESTART IDENTITY;')
             conn.commit()
             print(f"✅ Tabela {nome_tabela} truncada")
 
