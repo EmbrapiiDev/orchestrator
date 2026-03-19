@@ -4,7 +4,7 @@ import inspect
 
 # carregar .env
 load_dotenv()
-ROOT = os.getenv("ROOT")
+ROOT = os.getenv("ROOT_FORMS")
 
 # Definição dos caminhos
 STEP1 = os.path.abspath(os.path.join(ROOT, "step_1_data_raw"))
@@ -17,33 +17,16 @@ SHAREPOINT_SITE_NAME = os.getenv("sharepoint_site_name")
 SHAREPOINT_DOC = os.getenv("sharepoint_doc_library")
 
 
-from office365_api.download_files import get_file, get_files
-from scripts.apagar_arquivos_pasta import apagar_arquivos_pasta
+# from office365_api.download_files import get_file, get_files
+from scripts.connect_sharepoint import SharepointClient
 
 
 def buscar_arquivos_sharepoint():
     print("🟡 " + inspect.currentframe().f_code.co_name)
-    apagar_arquivos_pasta(STEP1)
-    apagar_arquivos_pasta(STEP2)
-    apagar_arquivos_pasta(STEP3)
-    apagar_arquivos_pasta(BACKUP)
 
-    get_file(
-        SHAREPOINT_SITE,
-        SHAREPOINT_SITE_NAME,
-        SHAREPOINT_DOC,
-        "srinfo_partnership_fundsapproval.xlsx",
-        "dw_pii",
-        STEP1,
-    )
-
-    get_files(
-        SHAREPOINT_SITE,
-        SHAREPOINT_SITE_NAME,
-        SHAREPOINT_DOC,
-        "DWPII/info_comp",
-        STEP1
-    )
+    sp = SharepointClient()
+    sp.download_file(f"Formulários Sebrae/formularios.zip", os.path.join(STEP1, "formularios_anteriores.zip"))
+    sp.download_file(f"Formulários Sebrae/respostas_formularios_sebrae.xlsx", os.path.join(STEP1, "respostas_formularios_sebrae_anterior.xlsx"))
 
     print("🟢 " + inspect.currentframe().f_code.co_name)
 

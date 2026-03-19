@@ -368,4 +368,4 @@ def gerar_planilhas_uf(planilha_geral, combinado, municipios, port_ue, proj_emp,
         wb.close()
 
         if enviar_pasta_sebrae == True:
-            sp.upload_file_to_folder(caminho_arquivo, f'Acompanhamento Descentralizado/SEBRAE_{uf}/base_de_dados_sebrae_{uf_lower}')
+            sp.upload_file_to_folder(caminho_arquivo, f'Acompanhamento Mensal Projetos/SEBRAE_{uf}/base_de_dados_sebrae_{uf_lower}')
