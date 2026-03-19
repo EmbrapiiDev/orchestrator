@@ -1,11 +1,13 @@
 import os
-from dotenv import load_dotenv
 from selenium import webdriver
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
 from selenium.webdriver.edge.service import Service as EdgeService
+from dotenv import load_dotenv
 
-# Instalar o driver uma vez
-edge_service = EdgeService(EdgeChromiumDriverManager().install())
+load_dotenv()
+ROOT = os.getenv("ROOT")
+
+# Caminho do driver local
+EDGE_DRIVER_PATH = os.path.join(ROOT, 'drivers', 'msedgedriver.exe')
 
 def configurar_webdriver(pasta_download=None):
     options = webdriver.EdgeOptions()
@@ -16,10 +18,10 @@ def configurar_webdriver(pasta_download=None):
     options.add_argument('--disable-extensions')
     options.add_argument('log-level=3')
     options.add_argument('--remote-debugging-port=0')
-    options.add_argument("--incognito")  # Modo anônimo
+    options.add_argument("--incognito")  # modo anônimo
     options.add_argument("--disable-cache")
-    # options.add_argument("--headless=new") 
-    
+    # options.add_argument("--headless=new")
+
     if pasta_download is None:
         pasta_download = os.path.join(os.getcwd(), "downloads")
 
@@ -31,7 +33,10 @@ def configurar_webdriver(pasta_download=None):
         "download.directory_upgrade": True,
         "safebrowsing.enabled": True
     }
-
     options.add_experimental_option("prefs", prefs)
+
+    # usa o driver local
+    edge_service = EdgeService(executable_path=EDGE_DRIVER_PATH)
     driver = webdriver.Edge(service=edge_service, options=options)
+
     return driver

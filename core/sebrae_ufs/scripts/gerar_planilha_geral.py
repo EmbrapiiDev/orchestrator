@@ -486,7 +486,7 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
 
     if enviar_pasta_sebrae:
         sp = SharepointClient(sebrae=True)
-        sp.upload_file_to_folder(caminho_arquivo, 'Acompanhamento Descentralizado/base_de_dados_sebrae_geral')
+        sp.upload_file_to_folder(caminho_arquivo, 'Acompanhamento Mensal Projetos/base_de_dados_sebrae_geral')
 
     return planilha_geral, combinado, municipios, port_ue, proj_emp, port_emp, port_me
 

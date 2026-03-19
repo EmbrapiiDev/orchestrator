@@ -5,15 +5,18 @@ from dotenv import load_dotenv
 import pytesseract
 from PIL import Image
 import io
+import json
+from autentica_azure.requisicao import RequisicaoMS
+import re
 
 # Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
-ROOT = os.getenv("ROOT")
+ROOT = os.getenv("ROOT_FORMS")
 STEP1 = os.path.abspath(os.path.join(ROOT, "step_1_data_raw"))
 STEP2 = os.path.abspath(os.path.join(ROOT, "step_2_stage_area"))
 STEP3 = os.path.abspath(os.path.join(ROOT, "step_3_data_processed"))
 
-# Processa os PDFs
+# Processa os PDFs normalmente
 def ler_pdfs():
     # Lista de frases de interesse
     frases_interesse = [
@@ -132,7 +135,6 @@ def ler_pdfs():
     # Ordenar frases de interesse da maior para a menor para evitar sobreposição (ex: "UF DO CNPJ" antes de "CNPJ")
     frases_interesse = sorted(frases_interesse, key=lambda x: -len(x))
 
-
     # Frases que devem ser ignoradas
     frases_excluir = [
         "Assinatura do responsável pela Unidade EMBRAPII",
@@ -145,6 +147,7 @@ def ler_pdfs():
 
     # Lista para armazenar os dados
     coletado = []
+    textos_pdf = {} 
     arquivo_n = 0
 
     for arquivo in os.listdir(STEP1):
@@ -153,6 +156,8 @@ def ler_pdfs():
             caminho_arquivo = os.path.join(STEP1, arquivo)
             nome_arquivo = arquivo
             doc = fitz.open(caminho_arquivo)
+
+            textos_pdf[nome_arquivo] = []
 
             for pagina_num in range(len(doc)):
                 pagina = doc.load_page(pagina_num)
@@ -168,6 +173,8 @@ def ler_pdfs():
 
                 else:
                     print(f"Texto extraído normalmente da página {pagina_num+1} do arquivo {nome_arquivo}")
+
+                textos_pdf[nome_arquivo].append(texto) 
 
                 linhas = texto.split('\n')
 
@@ -206,303 +213,323 @@ def ler_pdfs():
 
     print(f"Arquivos lidos: {arquivo_n}")
 
-    if coletado:
-        df = pd.DataFrame(coletado)
-        df['ticket'] = df['arquivo'].str.extract(r'_(\d+)\.')
+    df = pd.DataFrame(coletado) if coletado else pd.DataFrame()
+
+    if not df.empty:
+        df['ticket_acompanhamento'] = df['arquivo'].str.extract(r'_(\d+)\.')
         df.to_excel(os.path.join(STEP2, "dados_extraidos.xlsx"), index=False)
         print("Extração concluída. Dados salvos em 'dados_extraidos.xlsx'")
     else:
         print("Nenhum dado coletado.")
 
-def juntando_planilhas_info():
-    df = pd.read_excel(os.path.join(STEP2, 'dados_extraidos.xlsx'))
-    info = pd.read_excel(os.path.join(STEP2, 'info_complementares.xlsx'))
-    neg = pd.read_excel(os.path.join(STEP1, 'srinfo_partnership_fundsapproval.xlsx'))
-    neg = neg[['fundsapp_ticket_monitoring', 'negotiation_code']]
+    # 🔍 Identificar PDFs problemáticos
+    textos_problematicos = {}
 
-    info2 = neg.merge(info, left_on='fundsapp_ticket_monitoring', right_on='ticket', how='right')
+    for arquivo, textos in textos_pdf.items():
+        qtd = df[df["arquivo"] == arquivo].shape[0] if not df.empty else 0
+        if qtd < 20:
+            textos_problematicos[arquivo] = "\n\n".join(textos)
 
-    renomear_chaves = {
-        "AMPLIAR A GAMA DE BENS OU SERVIÇOS OFERTADOS": 'Ampliar a gama de bens ou serviços ofertados',
-        "AMPLIAR A PARTICIPAÇÃO DA EMPRESA NO MERCADO": 'Ampliar a participação da empresa no mercado',
-        "AUMENTAR A CAPACIDADE DE PRODUÇÃO OU DE PRESTAÇÃO DE SERVIÇOS": 'Aumentar a capacidade de produção ou de prestação de serviços',
-        "AUMENTAR A CAPACIDADE DE PRODUÇÃO OU DE PRESTAÇÃO DE": 'Aumentar a capacidade de produção ou de prestação de serviços',
-        "AUMENTAR A FLEXIBILIDADE DA PRODUÇÃO OU DA PRESTAÇÃO DE SERVIÇOS": 'Aumentar a flexibilidade da produção ou da prestação de serviços',
-        "ENQUADRAR EM REGULAÇÕES E NORMAS-PADRÃO RELATIVAS AO MERCADO INTERNO OU EXTERNO": 'Enquadrar em regulações e normas-padrão relativas ao mercado interno ou externo',
-        "MERCADO INTERNO OU EXTERNO": 'Enquadrar em regulações e normas-padrão relativas ao mercado interno ou externo',
-        "MELHORAR A QUALIDADE DOS BENS OU SERVIÇOS": 'Melhorar a qualidade dos bens ou serviços',
-        "PERMITIR ABRERTURA DE NOVOS MERCADOS": 'Permitir abertura de novos mercados',
-        "PERMITIR ABERTURA DE NOVOS MERCADOS": 'Permitir abertura de novos mercados',
-        "PERMITIR CONTROLAR ASPECTOS LIGADOS À SAÚDE E/OU À SEGURANÇA": 'Permitir controlar aspectos ligados à saúde e/ou à segurança',
-        "SEGURANÇA": 'Permitir controlar aspectos ligados à saúde e/ou à segurança',
-        "PERMITIR MANTER A PARTICIPAÇÃO DA EMPRESA NO MERCADO": 'Permitir manter a participação da empresa no mercado',
-        "PERMITIR REDUZIR O IMPACTO SOBRE O MEIO AMBIENTE": 'Permitir reduzir o impacto sobre o meio ambiente',
-        "REDUZIR O CONSUMO DE ÁGUA": 'Reduzir o consumo de água',
-        "REDUZIR O CONSUMO DE ENERGIA": 'Reduzir o consumo de energia',
-        "REDUZIR O CONSUMO DE MATÉRIAS-PRIMAS": 'Reduzir o consumo de matérias-primas',
-        "REDUZIR OS CUSTOS DE PRODUÇÃO OU DOS SERVIÇOS PRESTADOS": 'Reduzir os custos de produção ou dos serviços prestados',
-        "REDUZIR OS CUSTOS DO TRABALHO": 'Reduzir os custos do trabalho',
-        "SUBSTITUIR (TOTAL OU PARCIAL) MATÉRIAS-PRIMAS POR OUTRAS MENOS CONTAMINANTES OU PERIGOSAS": 'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        "MENOS CONTAMINANTES OU PERIGOSAS": 'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        "CONTAMINANTES OU PERIGOSAS": 'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        "PERIGOSAS": 'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        "SUBSTITUIR (TOTAL OU PARCIAL) MATÉRIAS-PRIMAS POR OUTRAS MENOS CONTAMINANTES OU": 'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        "SUBSTITUIR (TOTAL OU PARCIAL) MATÉRIAS-PRIMAS POR OUTRAS MENOS CONTAMINANTES OU ": 'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        "SUBSTITUIR (TOTAL OU PARCIAL) MATÉRIAS-PRIMAS POR OUTRAS MENOS": 'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        "SUBSTITUIR (TOTAL OU PARCIAL) ENERGIA PROVENIENTE DE COMBUSTÍVEIS FÓSSEIS POR FONTES DE ENERGIA RENOVÁVEIS": 'Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis',
-        "SUBSTITUIR (TOTAL OU PARCIAL) ENERGIA PROVENIENTE DE COMBUSTÍVEIS FÓSSEIS POR FONTES DE ENERGIA": 'Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis',
-        "SUBSTITUIR (TOTAL OU PARCIAL) ENERGIA PROVENIENTE DE COMBUSTÍVEIS FÓSSEIS POR FONTES DE": 'Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis',
-        "ENERGIA RENOVÁVEIS": 'Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis',
-        "RENOVÁVEIS": 'Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis',
-        "COMBUSTÍVEIS FÓSSEIS POR FONTES DE ENERGIA RENOVÁVEIS": 'Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis',
-        "REDUZIR RUÍDOS OU A CONTAMINAÇÃO DO SOLO, DA ÁGUA OU DO AR": 'Reduzir ruídos ou a contaminação do solo, da água ou do ar',
-        "RECICLAGEM DE RESÍDUOS, ÁGUAS RESIDUAIS OU MATERIAIS PARA VENDA E/OU REUTILIZAÇÃO": 'Reciclagem de resíduos, águas residuais ou materiais para venda e/ou reutilização',
-        "VENDA E/OU REUTILIZAÇÃO": 'Reciclagem de resíduos, águas residuais ou materiais para venda e/ou reutilização',
-        "REDUÇÃO DA 'PEGADA' DE CO (PRODUÇÃO TOTAL DE CO) DE SUA EMPRESA": 'Redução da pegada de CO (produção total de CO) de sua empresa',
-        "EMPRESA:": 'Redução da pegada de CO (produção total de CO) de sua empresa'
-    }
+    return textos_problematicos
 
-    chaves_desejadas = [
-        'Ampliar a gama de bens ou serviços ofertados',
-        'Ampliar a participação da empresa no mercado',
-        'Aumentar a capacidade de produção ou de prestação de serviços',
-        'Aumentar a flexibilidade da produção ou da prestação de serviços',
-        'Enquadrar em regulações e normas-padrão relativas ao mercado interno ou externo',
-        'Melhorar a qualidade dos bens ou serviços',
-        'Permitir abertura de novos mercados',
-        'Permitir controlar aspectos ligados à saúde e/ou à segurança',
-        'Permitir manter a participação da empresa no mercado',
-        'Permitir reduzir o impacto sobre o meio ambiente',
-        'Reduzir o consumo de água',
-        'Reduzir o consumo de energia',
-        'Reduzir o consumo de matérias-primas',
-        'Reduzir os custos de produção ou dos serviços prestados',
-        'Reduzir os custos do trabalho',
-        'Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis',
-        'Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas',
-        'Reduzir ruídos ou a contaminação do solo, da água ou do ar',
-        'Reciclagem de resíduos, águas residuais ou materiais para venda e/ou reutilização',
-        'Redução da pegada de CO (produção total de CO) de sua empresa'
-    ]
+MAPA_PERGUNTAS = {
+    "impactos_ampliar_gama_bens_servicos": "Ampliar a gama de bens ou serviços ofertados",
+    "impactos_ampliar_participacao_mercado": "Ampliar a participação da empresa no mercado",
+    "impactos_aumentar_capacidade_producao": "Aumentar a capacidade de produção ou de prestação de serviços",
+    "impactos_aumentar_flexibilidade": "Aumentar a flexibilidade da produção ou da prestação de serviços",
+    "impactos_enquadrar_regulacoes": "Enquadrar em regulações e normas-padrão relativas ao mercado interno ou externo",
+    "impactos_melhorar_qualidade": "Melhorar a qualidade dos bens ou serviços",
+    "impactos_abrir_novos_mercados": "Permitir abertura de novos mercados",
+    "impactos_controlar_saude_seguranca": "Permitir controlar aspectos ligados à saúde e/ou à segurança",
+    "impactos_manter_participacao": "Permitir manter a participação da empresa no mercado",
+    "impactos_reduzir_impacto_ambiental": "Permitir reduzir o impacto sobre o meio ambiente",
+    "impactos_reduzir_consumo_agua": "Reduzir o consumo de água",
+    "impactos_reduzir_consumo_energia": "Reduzir o consumo de energia",
+    "impactos_reduzir_consumo_materias_primas": "Reduzir o consumo de matérias-primas",
+    "impactos_reduzir_custos_producao": "Reduzir os custos de produção ou dos serviços prestados",
+    "impactos_reduzir_custos_trabalho": "Reduzir os custos do trabalho",
+    "impactos_substituir_energia_fossil": "Substituir (total ou parcial) energia proveniente de combustíveis fósseis por fontes de energia renováveis",
+    "impactos_substituir_materias_primas": "Substituir (total ou parcial) matérias-primas por outras menos contaminantes ou perigosas",
+    "impactos_reduzir_ruidos_contaminacao": "Reduzir ruídos ou a contaminação do solo, da água ou do ar",
+    "impactos_reciclagem_residuos": "Reciclagem de resíduos, águas residuais ou materiais para venda e/ou reutilização",
+    "impactos_reducao_pegada_co": "Redução da pegada de CO (produção total de CO) de sua empresa"
+}
 
-    # Aplicando as renomeações nas chaves
-    df['pergunta'] = df['pergunta'].replace(renomear_chaves)
+MAPA_IMPACTO_TECNOLOGIA = {
+    "BAIXA": "BAIXO",
+    "MÉDIA": "MÉDIO",
+    "ALTA": "ALTO/DISRUPTIVO"
+}
 
-    # Filtrar o DataFrame
-    df_filtrado = df[df['pergunta'].isin(chaves_desejadas)]
+def parse_json_from_text(text):
+        """
+        Tenta extrair JSON válido de um texto (remove cercas de código, captura primeiro bloco {}).
+        """
+        # Remover cercas de código se existirem
+        if '```' in text:
+            parts = text.split('```')
+            # Busca o primeiro trecho que pareça JSON
+            for i in range(1, len(parts), 2):
+                candidate = parts[i].strip()
+                if candidate.startswith('json'):
+                    candidate = candidate[4:].strip()
+                if candidate.startswith('{') and candidate.endswith('}'):
+                    try:
+                        return json.loads(candidate)
+                    except Exception:
+                        pass
+            # Se não achou, tenta concatenar removendo as cercas
+            text = ''.join(p for idx, p in enumerate(parts) if idx % 2 == 0)
 
-    # Salvando na pasta de saída
-    df_filtrado.to_excel(os.path.join(STEP2, "info_complementares_pdfs.xlsx"), index=False)
+        # Tenta parse direto
+        try:
+            return json.loads(text)
+        except Exception:
+            pass
 
-    # Juntando os dois
-    df_final2 = neg.merge(df_filtrado, left_on='fundsapp_ticket_monitoring', right_on='ticket', how='right')
-    df_final2 = df_final2[['arquivo', 'ticket', 'negotiation_code', 'pergunta', 'resposta']]
-    info_final = pd.concat([info2, df_final2], ignore_index=True)
-    info_final = info_final.drop_duplicates()
-    info_final.to_excel(os.path.join(STEP2, 'info_complementares_novo.xlsx'), index=False)
+        # Tenta localizar o primeiro bloco { ... }
+        try:
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end != -1 and end > start:
+                return json.loads(text[start:end+1])
+        except Exception:
+            pass
 
-def juntando_planilhas_geral():
+        raise json.JSONDecodeError('Não foi possível extrair JSON da resposta do modelo', text, 0)
 
-    df = pd.read_excel(os.path.join(STEP2, 'dados_extraidos.xlsx'))
-    geral = pd.read_excel(os.path.join(STEP2, 'info_gerais.xlsx'))
+def requisicao(prompt, modelo = 'o4-mini'):
+    requisicao_ms = RequisicaoMS()
 
-    renomear_chaves = {
-        "UNIDADE EMBRAPII": 'unidade_embrapii',
-        "CÓDIGO DE NEGOCIAÇÃO": 'codigo_negociacao',
-        "MODALIDADE DE FINANCIAMENTO DO PROJETO": 'modalidade_financiamento',
-        "FOCO DO CONTRATO BNDES/EMBRAPII DA SOLICITAÇÃO DE RESERVA": 'foco',
-        "FONTE DE RECURSO SECUNDÁRIA": 'fonte_secundaria',
-        "EMPRESA:": '',
-        "RAZÃO SOCIAL DA 1ª EMPRESA": 'empresa',
-        "RAZÃO SOCIAL DA 1º EMPRESA": 'empresa',
-        "RAZÃO SOCIAL DA 2ª EMPRESA": 'empresa',
-        "RAZÃO SOCIAL DA 3ª EMPRESA": 'empresa',
-        "RAZÃO SOCIAL DA 4ª EMPRESA": 'empresa',
-        "NOME FANTASIA": 'nome_fantasia',
-        "CNPJ": 'cnpj',
-        "UF DO CNPJ": 'uf',
-        "NÚMERO DE FUNCIONÁRIOS NO ÚLTIMO ANO": 'num_funcionarios',
-        "FAIXA DE ROB NO ÚLTIMO ANO": 'rob',
-        "CNAE (GRUPO 3 DÍGITOS) DA EMPRESA": 'cnae',
-        "VALOR TOTAL": 'valor_total',
-        "VALOR APORTADO PELA EMBRAPII": 'valor_embrapii',
-        "VALOR APORTADO PELA EMBRAPII/BNDES": 'valor_embrapii_bndes',
-        "% VALOR APORTADO EMBRAPII": 'pct_aporte_embrapii',
-        "% VALOR APORTADO EMBRAPII/BNDES": 'pct_aporte_embrapii_bndes',
-        "VALOR APORTADO PELA(S) EMPRESA(S)": 'valor_empresa',
-        "% VALOR APORTADO PELA(S) EMPRESA(S)": 'pct_aporte_empresa',
-        "VALOR APORTADO PELO SEBRAE": 'valor_sebrae',
-        "% VALOR APORTADO PEL0 SEBRAE": 'pct_aporte_sebrae',
-        "% VALOR APORTADO PELO SEBRAE": 'pct_aporte_sebrae',
-        "VALOR APORTADO PELA UNIDADE EMBRAPII": 'valor_unidade_embrapii',
-        "% VALOR APORTADO PELA UNIDADE EMBRAPII": 'pct_aporte_unidade',
-        "NOME DO PROJETO": 'projeto',
-        "OBJETIVO DO PROJETO": 'objetivo',
-        "TIPO DE IMPACTO PRODUTIVO ESPERADO COM O PROJETO": 'impacto_produtivo',
-        "1ª ÁREA DE APLICAÇÃO ASSOCIADA AO PROJETO P,D&I": 'areas_aplicacao',
-        "2ª ÁREA DE APLICAÇÃO ASSOCIADA AO PROJETO P,D&I": 'areas_aplicacao',
-        "3ª ÁREA DE APLICAÇÃO ASSOCIADA AO PROJETO P,D&I": 'areas_aplicacao',
-        "1ª TECNOLOGIA HABILITADORA ASSOCIADA AO PROJETO P,D&I": 'tecnologias_habilitadoras',
-        "2ª TECNOLOGIA HABILITADORA ASSOCIADA AO PROJETO P,D&I": 'tecnologias_habilitadoras',
-        "3ª TECNOLOGIA HABILITADORA ASSOCIADA AO PROJETO P,D&I": 'tecnologias_habilitadoras',
-        "CASO TENHA ESCOLHIDO \"OUTROS\", PREENCHA AO LADO": 'outros',
-        "Nº DE MACROENTREGAS PLANEJADAS": 'num_macroentregas',
-        "ESCALA TRL DA 1ª MACROENTREGA DO PROJETO (NO INÍCIO DA SUA EXECUÇÃO)": 'trl_inicial',
-        "ESCALA TRL DA 1ª MACROENTREGA DO PROJETO (NO INÍCIO DA SUA": 'trl_inicial',
-        "EXECUÇÃO)": 'trl_inicial',
-        "ESCALA TRL DA ÚLTIMA MACROENTREGA (ESPERADO NA CONCLUSÃO DO PROJETO)": 'trl_final',
-        "ESCALA TRL DA ÚLTIMA MACROENTREGA (ESPERADO NA CONCLUSÃO DO": 'trl_final',
-        "ESCALA TRL DA ÚLTIMA MACROENTREGA (ESPERADO NA CONCLUSÃO": 'trl_final',
-        "RESULTADOS ESPERADOS COM A CONCLUSÃO DO PROJETO (DESCRITIVO - MÁX DE 500 CARACTERES)": 'resultados_esperados',
-        "RESULTADOS ESPERADOS COM A CONCLUSÃO DO PROJETO (DESCRITIVO -": 'resultados_esperados',
-        "RESULTADOS ESPERADOS COM A CONCLUSÃO DO PROJETO": 'resultados_esperados',
-        "(DESCRITIVO - MÁX DE 500 CARACTERES)": 'resultados_esperados',
-        "MÁX DE 500 CARACTERES)": 'resultados_esperados',
-        "A CONCLUSÃO DO PROJETO)": 'tempo_chegada_mercado',
-        "CONCLUSÃO DO PROJETO)": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE TEMPO ESPERADO PARA QUE A TECNOLOGIA CHEGUE": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE TEMPO ESPERADO PARA QUE A TECNOLOGIA CHEGUE AO MERCADO (EM Nº DE MESES": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE TEMPO ESPERADO PARA QUE A TECNOLOGIA CHEGUE AO MERCADO (EM Nº DE MESES APÓS": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE TEMPO ESPERADO PARA QUE A TECNOLOGIA CHEGUE AO MERCADO (EM Nº DE MESES APÓS A": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE TEMPO ESPERADO PARA QUE A TECNOLOGIA CHEGUE AO MERCADO (EM Nº DE MESES APÓS A CONCLUSÃ": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE TEMPO ESPERADO PARA QUE A TECNOLOGIA CHEGUE AO MERCADO (EM Nº DE MESES APÓS A CONCLUSÃO": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE TEMPO ESPERADO PARA QUE A TECNOLOGIA CHEGUE AO MERCADO (EM Nº DE MESES APÓS A CONCLUSÃO DO PROJETO)": 'tempo_chegada_mercado',
-        "EXPECTATIVA DE IMPACTO ESPERADO DA(S) TECNOLOGIA(S) QUE SERÁ(ÃO) DESENVOLVIDAS(S) - BAIXO,": 'impacto_tecnologia',
-        "EXPECTATIVA DE IMPACTO ESPERADO DA(S) TECNOLOGIA(S) QUE SERÁ(ÃO) DESENVOLVIDAS(S) - BAIXO, MÉDIO": 'impacto_tecnologia',
-        "EXPECTATIVA DE IMPACTO ESPERADO DA(S) TECNOLOGIA(S) QUE SERÁ(ÃO) DESENVOLVIDAS(S) - BAIXO, MÉDIO OU": 'impacto_tecnologia',
-        "EXPECTATIVA DE IMPACTO ESPERADO DA(S) TECNOLOGIA(S) QUE": 'impacto_tecnologia',
-        "EXPECTATIVA DE IMPACTO ESPERADO DA(S) TECNOLOGIA(S) QUE SERÁ(ÃO) DESENVOLVIDAS(S) - BAIXO, MÉDIO OU ALTO/DISRUPTIVO": 'impacto_tecnologia',
-        "SERÁ(ÃO) DESENVOLVIDAS(S) - BAIXO, MÉDIO OU ALTO/DISRUPTIVO": 'impacto_tecnologia',
-        "MÉDIO OU ALTO/DISRUPTIVO": 'impacto_tecnologia',
-        "OU ALTO/DISRUPTIVO": 'impacto_tecnologia',
-        "ALTO/DISRUPTIVO:": 'impacto_tecnologia',
-        "QUAL É A EXPECTATIVA DE SIGNIFICÂNCIA DA(S) INOVAÇÃO(ÕES) QUE": 'significancia_inovacao',
-        "QUAL É A EXPECTATIVA DE SIGNIFICÂNCIA DA(S) INOVAÇÃO(ÕES) QUE SERÁ(ÃO) GERADA(S) NO PROJETO?": 'significancia_inovacao',
-        "O PROJETO IRÁ USAR RECURSOS DOS CONTRATOS SEBRAE": 'recursos_sebrae',
-        "MODALIDADE DE APORTE DO PROJETO": 'modalidade_aporte',
-    }
-
-    # Aplicando as renomeações nas chaves
-    df['pergunta'] = df['pergunta'].replace(renomear_chaves)
-
-    # Filtrar o DataFrame
-    df_filtrado = df[~df['resposta'].isin(['Alta', 'Média', 'Baixa', 'Não relevante'])]
-
-    # Agrupando por Arquivo + Chave e juntando os valores com "; " se for o caso
-    df_agrupado = df_filtrado.groupby(['arquivo', 'ticket', 'pergunta'])['resposta'].apply(lambda x: '; '.join(x.astype(str))).reset_index()
-
-    # Pivotando
-    df_pivot = df_agrupado.pivot(index=['arquivo', 'ticket'], columns='pergunta', values='resposta').reset_index()
-
-    trl = [
-        '3. Estabelecimento de função crítica de forma analítica, experimental e/ou prova de conceito',
-        '4. Validação funcional dos componentes em ambiente de laboratório',
-        '5. Validação das funções críticas dos componentes em ambiente relevante',
-        '6. Demonstração de funções críticas do protótipo em ambiente relevante',
-        '7. Demonstração de protótipo do sistema em ambiente operacional',
-        '8. Sistema qualificado e finalizado',
-        '9. Sistema operando e comprovado em todos os aspectos de sua missão operacional'
-    ]
-    for i in range(len(trl)):
-        if df_pivot['trl_inicial'] in df_pivot.columns:
-            df_pivot.loc[df_pivot['trl_inicial'].astype(str).str.contains(str(i+3), na=False), 'trl_inicial'] = trl[i]
-        if df_pivot['trl_final'] in df_pivot.columns:
-            df_pivot.loc[df_pivot['trl_final'].astype(str).str.contains(str(i+3), na=False), 'trl_final'] = trl[i]
-
-    valores = [
-        'pct_aporte_embrapii',
-        'pct_aporte_embrapii_bndes',
-        'pct_aporte_empresa',
-        'pct_aporte_sebrae',
-        'pct_aporte_unidade',
-        'valor_embrapii',
-        'valor_embrapii_bndes',
-        'valor_empresa',
-        'valor_sebrae',
-        'valor_unidade_embrapii',
-        'valor_total'
-    ]
-
-    for col in valores:
-        if col in df_pivot.columns:
-            df_pivot[col] = df_pivot[col].astype(str).apply(lambda x: x.replace('.', '') if 'R$ ' in x else x)
-            df_pivot[col] = df_pivot[col].str.replace('R$', '', case=False)
-            df_pivot[col] = df_pivot[col].str.replace(' ', '', case=False)
-            df_pivot[col] = df_pivot[col].str.replace('-', '', case=False)
-            df_pivot[col] = df_pivot[col].str.replace('%', '', case=False)
-            df_pivot[col] = df_pivot[col].str.replace(',', '.', case=False)
-            df_pivot[col] = pd.to_numeric(df_pivot[col], errors='coerce')
-
-    # Escolhendo as colunas
-    colunas_informacoes = [
-        'arquivo',
-        'ticket',
-        'codigo_negociacao',
-        'unidade_embrapii',
-        'modalidade_financiamento',
-        'modalidade_aporte',
-        'foco',
-        'trl_inicial',
-        'trl_final',
-        'num_macroentregas',
-        'projeto',
-        'objetivo',
-        'recursos_sebrae',
-        'fonte_secundaria',
-        'impacto_produtivo',
-        'areas_aplicacao',
-        'tecnologias_habilitadoras',
-        'outros',
-        'resultados_esperados',
-        'tempo_chegada_mercado',
-        'impacto_tecnologia',
-        'significancia_inovacao',
-        'cnpj',
-        'empresa',
-        'nome_fantasia',
-        'uf',
-        'cnae',
-        'rob',
-        'num_funcionarios',
-        'pct_aporte_embrapii',
-        'pct_aporte_embrapii_bndes',
-        'pct_aporte_empresa',
-        'pct_aporte_sebrae',
-        'pct_aporte_unidade',
-        'valor_embrapii',
-        'valor_embrapii_bndes',
-        'valor_empresa',
-        'valor_sebrae',
-        'valor_unidade_embrapii',
-        'valor_total'
-        ]
-
-    # Mantém apenas colunas que existem no DataFrame
-    colunas_existentes = [col for col in colunas_informacoes if col in df_pivot.columns]
-
-    df_pivot = df_pivot[colunas_existentes]
-
-    colunas_para_usar = df_pivot.columns.difference(['arquivo'])
-    df_pivot = df_pivot.drop_duplicates(subset=colunas_para_usar)
-
-    df_concat = pd.concat([df_pivot, geral], ignore_index=True)
-
-    df_concat.to_excel(os.path.join(STEP2, 'info_gerais_novo.xlsx'), index=False)
-    print(f'Arquivos salvos com sucesso na pasta {STEP2}')
-
-def gerando_planilhas_final():
+    response_text = requisicao_ms.requisita(
+        mensagem=prompt,
+        model=modelo
+    )
     
-    ## INFORMAÇÕES GERAIS
-    info_gerais_anterior = pd.read_excel(os.path.abspath(os.path.join(STEP1, 'info_gerais.xlsx')))
-    info_gerais_novo = pd.read_excel(os.path.abspath(os.path.join(STEP2, 'info_gerais_novo.xlsx')))
+    if response_text == "erro":
+        print(f"Erro na requisição")
+        return None
+    
+    # Faz parse do JSON
+    try:
+        resposta = parse_json_from_text(response_text)
+        
+        # # Armazenar justificativas específicas com prefixo
+        # if 'justificativa' in classificacao:
+        #     classificacao[f'{prompt_key}_justificativa'] = classificacao['justificativa']
+        # if 'confianca' in classificacao:
+        #     classificacao[f'{prompt_key}_confianca'] = classificacao['confianca']
+        
+        # print(f"Classificação {prompt_key} realizada com sucesso")
+        return resposta
+    except json.JSONDecodeError as e:
+        print(f"Erro ao fazer parse do JSON: {e}")
+        return None
 
-    ger_concat = pd.concat([info_gerais_anterior, info_gerais_novo], ignore_index=True).drop_duplicates()
-    ger_concat.to_excel(os.path.join(STEP3, 'info_gerais.xlsx'), index=False)
+def gerar_prompt(texto):
+    prompt_base = """
+O texto abaixo foi extraído de um PDF de formulário EMBRAPII.
+O documento pode conter:
+- Quebras de linha incorretas
+- Texto desalinhado
+- OCR com erros
+- Perguntas e respostas em linhas separadas ou fora de ordem
 
-    ### INFORMAÇÕES COMPLEMENTARES
-    info_comp_anterior = pd.read_excel(os.path.abspath(os.path.join(STEP1, 'info_complementares.xlsx')))
-    info_comp_novo = pd.read_excel(os.path.abspath(os.path.join(STEP2, 'info_complementares_novo.xlsx')))
+As perguntas seguem o padrão dos formulários EMBRAPII, mas podem variar levemente na redação.
 
-    comp_concat = pd.concat([info_comp_anterior, info_comp_novo], ignore_index=True).drop_duplicates()
-    comp_concat.to_excel(os.path.join(STEP3, 'info_complementares.xlsx'), index=False)
+Sua tarefa:
+1. Interpretar semanticamente o texto
+2. Identificar perguntas e seus respectivos valores
+3. Associar corretamente cada resposta à sua pergunta
+4. Normalizar os dados conforme o schema abaixo
+5. Retornar APENAS um JSON válido
+6. Não inventar informações
+7. Se houver ambiguidade ou ausência de resposta, usar null
+----
 
+Texto a ser interpretado:
+{texto}
+
+----
+Campos esperados (normalize exatamente estes nomes):
+
+Informações gerais:
+- projeto
+- objetivo
+- codigo_negociacao
+- unidade_embrapii
+- modalidade_financiamento
+- modalidade_aporte
+- foco
+- trl_inicial
+- trl_final
+- num_macroentregas
+- recursos_sebrae
+- fonte_secundaria
+- impacto_produtivo
+- impacto_tecnologia
+- significancia_inovacao
+- tempo_chegada_mercado
+- resultados_esperados
+
+Empresas (lista):
+- empresas: [
+    {{
+      empresa,
+      nome_fantasia,
+      cnpj,
+      uf,
+      cnae,
+      rob,
+      num_funcionarios
+    }}
+  ]
+
+Áreas e tecnologias:
+- areas_aplicacao
+- tecnologias_habilitadoras
+- outros
+
+Financeiro:
+- pct_aporte_embrapii
+- pct_aporte_embrapii_bndes
+- pct_aporte_empresa
+- pct_aporte_sebrae
+- pct_aporte_unidade
+- valor_embrapii
+- valor_embrapii_bndes
+- valor_empresa
+- valor_sebrae
+- valor_unidade_embrapii
+- valor_total
+
+Impactos esperados (classifique exatamente como):
+- Alta
+- Média
+- Baixa
+- Não relevante
+
+Campos de impacto:
+- ampliar_gama_bens_servicos
+- ampliar_participacao_mercado
+- aumentar_capacidade_producao
+- aumentar_flexibilidade
+- enquadrar_regulacoes
+- melhorar_qualidade
+- abrir_novos_mercados
+- controlar_saude_seguranca
+- manter_participacao
+- reduzir_impacto_ambiental
+- reduzir_consumo_agua
+- reduzir_consumo_energia
+- reduzir_consumo_materias_primas
+- reduzir_custos_producao
+- reduzir_custos_trabalho
+- substituir_energia_fossil
+- substituir_materias_primas
+- reduzir_ruidos_contaminacao
+- reciclagem_residuos
+- reducao_pegada_co
+
+Formato de saída (exemplo mínimo, APENAS em JSON válido):
+
+{
+  "projeto": "...",
+  "empresas": [...],
+  "financeiro": {...},
+  "impactos": {...}
+}
+"""
+
+    
+    variables = {
+        "texto": texto
+    }
+
+    try:
+        formatted_prompt = prompt_base.format(**variables)
+        return formatted_prompt
+    except Exception as e:
+        raise ValueError(f"Erro ao formatar o prompt: {str(e)}")
+
+# Processa os PDFs problemáticos usando IA para interpretar o texto e extrair as informações
+def ler_pdfs_ia(textos_problematicos, pasta_saida):
+
+    resultados = []
+
+    for arquivo, texto in textos_problematicos.items():
+        print(f"Processando arquivo: {arquivo}")
+        print(f"Texto extraído: {texto[:500]}...")  # Exibe os primeiros 500 caracteres para referência
+
+        prompt = gerar_prompt(texto)
+
+        resposta = requisicao(
+            prompt=prompt,
+            modelo='o4-mini'
+        )
+
+        if resposta is None:
+            continue
+
+        resposta["arquivo"] = arquivo
+        resultados.append(resposta)
+
+    # ===============================
+    # JSON → DataFrame normalizado
+    # ===============================
+    df_final = pd.json_normalize(resultados, sep="_")
+    df_final.to_excel(
+        os.path.join(pasta_saida, "resultados_pdf_raw_ia.xlsx"),
+        index=False
+    )
+
+    # ===============================
+    # Explodir impactos
+    # ===============================
+    linhas = []
+
+    for _, row in df_final.iterrows():
+        arquivo = row["arquivo"]
+        match = re.search(r"(\d+)", arquivo)
+        ticket = match.group(1) if match else None
+
+        for campo, pergunta in MAPA_PERGUNTAS.items():
+            resposta = row.get(campo)
+
+            if pd.notna(resposta):
+                linhas.append({
+                    "arquivo": arquivo,
+                    "ticket_acompanhamento": ticket,
+                    "pergunta": pergunta,
+                    "resposta": resposta
+                })
+
+    df_impactos = pd.DataFrame(linhas)
+
+    # ===============================
+    # Impacto tecnologia
+    # ===============================
+    if "impacto_tecnologia" in df_final.columns:
+        df_impacto_tecnologia = df_final[['arquivo', 'impacto_tecnologia']].copy()
+        df_impacto_tecnologia['ticket_acompanhamento'] = df_impacto_tecnologia['arquivo'].str.extract(r"(\d+)")
+        df_impacto_tecnologia['resposta'] = (
+            df_impacto_tecnologia['impacto_tecnologia']
+            .str.upper()
+            .map(MAPA_IMPACTO_TECNOLOGIA)
+        )
+
+        df_impacto_tecnologia['pergunta'] = (
+            'Expectativa de impacto esperado da(s) tecnologia(s) que será(ão) desenvolvida(s)'
+        )
+
+        df_impacto_tecnologia = df_impacto_tecnologia.dropna(subset=['resposta'])
+
+        df_impactos = pd.concat(
+            [df_impactos, df_impacto_tecnologia[['arquivo', 'ticket_acompanhamento', 'pergunta', 'resposta']]],
+            ignore_index=True
+        )
+
+    caminho_saida = os.path.join(pasta_saida, "info_complementares_pdf_ia.xlsx")
+    df_impactos.to_excel(caminho_saida, index=False)
+
+    return df_final, df_impactos

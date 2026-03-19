@@ -33,7 +33,7 @@ def main():
     #     sp.upload_file_to_folder(os.path.join(STEP3, arquivo), 'dw_pii')
     #     shutil.move(os.path.join(STEP3, arquivo), os.path.join(STEP1, arquivo))
 
-    # # Gerando planilhas
+    # Gerando planilhas
     print("Passo 3/4: Gerando planilhas")
     planilha_geral, combinado, municipios, port_ue, proj_emp, port_emp, port_me = gerar_planilha_geral(gerar_novo=False, enviar_pasta_sebrae=True)
     gerar_planilha_erros(planilha_geral)
