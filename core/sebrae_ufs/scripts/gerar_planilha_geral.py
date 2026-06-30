@@ -104,6 +104,9 @@ def gerar_planilha_geral(gerar_novo = False, enviar_pasta_sebrae = False):
 
     ####### PLANILHA GERAL #######
     planilha_geral = port_fonte[port_fonte['parceria_programa'].str.contains('SEBRAE')]
+    
+    ## RETIRANDO SEBRAE 5
+    planilha_geral = planilha_geral[planilha_geral['parceria_programa'].str.contains('SEBRAE 5') == False]
 
     # incluindo coluna de id sequencial, dado_atual e data de extração
     if gerar_novo == False:
